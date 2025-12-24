@@ -372,6 +372,32 @@ export class EviqoWebsocketConnection extends EventEmitter {
     }
   }
 
+  private handleWidgetUpdate(payload: Record<string, unknown>): void {
+    const widgetId = String(payload.widgetId || '');
+    const deviceId = String(payload.deviceId || '');
+    const widgetValue = String(payload.widgetValue || '');
+
+    const deviceWidgetIdMap = this.widgetIdMap.get(0);
+    const widgetStream = deviceWidgetIdMap?.get(widgetId);
+
+    if (widgetStream) {
+      const update = {
+        widgetId,
+        widgetStream,
+        deviceId,
+        widgetValue,
+        time: new Date(),
+      };
+
+      this.emit('widgetUpdate', update);
+
+      logger.info(
+        `{'widget_id': '${widgetId}', 'widget_name': '${widgetStream.name}', 'device_id': '${deviceId}', 'widget_value': '${widgetValue}'}`
+      );
+    } else {
+      logger.error(`Could not find widget at ID ${widgetId}`);
+    }
+  }
 
   /**
    * Listen for incoming messages
@@ -404,7 +430,7 @@ export class EviqoWebsocketConnection extends EventEmitter {
               const { header, payload } = parseBinaryMessage(message);
 
               if (header && header.payloadType === 'widget_update') {
-                logger.info(JSON.stringify(payload));
+                this.handleWidgetUpdate(payload as Record<string, unknown>);
               }
 
               this.ws?.removeListener('message', messageHandler);
