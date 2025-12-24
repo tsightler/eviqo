@@ -16,7 +16,7 @@
  */
 
 import * as dotenv from 'dotenv';
-import { EviqoWebsocketConnection, WS_URL, logger, LogLevel } from '../src';
+import { EviqoWebsocketConnection, WS_URL } from '../src';
 
 // Load environment variables
 dotenv.config();
