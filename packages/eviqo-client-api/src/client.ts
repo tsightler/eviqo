@@ -513,9 +513,9 @@ export class EviqoWebsocketConnection extends EventEmitter {
       const message = createCommandMessage(deviceId, pin, value, msgId);
 
       logger.info(
-        `SENDING COMMAND: device=${deviceId} pin=${pin} value=${value}`
+        `SENDING COMMAND: device=${deviceId} pin=${pin} value=${value} [msgId=${msgId}, counter=${this.messageCounter}]`
       );
-      logger.info(`Command hex: ${message.toString('hex')}`);
+      logger.info(`Outbound hex: ${message.toString('hex')}`);
 
       this.ws.send(message);
     } catch (error) {
@@ -560,7 +560,8 @@ export class EviqoWebsocketConnection extends EventEmitter {
         byte3,
         actualByte4
       );
-      logger.debug(`SENDING ${description}`);
+      logger.info(`SENDING ${description} [byte4=${actualByte4}, counter=${this.messageCounter}]`);
+      logger.info(`Outbound hex: ${message.toString('hex')}`);
       this.ws.send(message);
     } catch (error) {
       logger.error(`Error sending message: ${error}`);
