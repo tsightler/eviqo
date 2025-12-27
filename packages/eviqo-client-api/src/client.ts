@@ -52,7 +52,6 @@ export class EviqoWebsocketConnection extends EventEmitter {
   private devices: DeviceDocs[] = [];
   private devicePages: EviqoDevicePageModel[] = [];
   private messageCounter = 0;
-  private commandCounter = 0x0100; // Start command IDs at 256 to avoid conflicts
   private widgetIdMap: Map<number, Map<string, DisplayDataStream>> = new Map();
   private widgetNameMap: Map<number, Map<string, DisplayDataStream>> =
     new Map();
@@ -507,8 +506,8 @@ export class EviqoWebsocketConnection extends EventEmitter {
     }
 
     try {
-      const msgId = this.commandCounter;
-      this.commandCounter += 1;
+      const msgId = this.messageCounter;
+      this.messageCounter += 1;
 
       const message = createCommandMessage(deviceId, pin, value, msgId);
 
