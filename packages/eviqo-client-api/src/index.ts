@@ -50,6 +50,7 @@ export {
   parseBinaryMessage,
   parseWidgetUpdate,
   createBinaryMessage,
+  createCommandMessage,
 } from './utils/protocol';
 
 // Re-export types

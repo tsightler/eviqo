@@ -16,7 +16,11 @@ import {
   DeviceDocs,
 } from 'eviqo-client-api';
 import { GatewayConfig, getMqttUrl } from './config';
-import { publishDeviceDiscovery, removeDeviceDiscovery } from './ha-discovery';
+import {
+  publishDeviceDiscovery,
+  removeDeviceDiscovery,
+  CONTROLLABLE_WIDGETS,
+} from './ha-discovery';
 
 /**
  * Normalize widget name for MQTT topic
@@ -45,6 +49,11 @@ export class EviqoMqttGateway extends EventEmitter {
   private state: GatewayState = 'disconnected';
   private reconnectTimer: NodeJS.Timeout | null = null;
   private shutdownRequested = false;
+  // Map command topics to device/pin info for handling MQTT commands
+  private commandTopicMap: Map<string, { deviceId: string; pin: string }> =
+    new Map();
+  // Reverse map from deviceId:pin to state topic for updating state after commands
+  private pinToStateTopicMap: Map<string, string> = new Map();
 
   constructor(config: GatewayConfig) {
     super();
@@ -207,6 +216,11 @@ export class EviqoMqttGateway extends EventEmitter {
       this.handleWidgetUpdate(update);
     });
 
+    // Set up command sent handler to update state immediately
+    this.eviqoClient.on('commandSent', (command: { deviceId: string; pin: string; value: string }) => {
+      this.handleCommandSent(command);
+    });
+
     // Connect and authenticate
     if (!(await this.eviqoClient.connect())) {
       throw new Error('Failed to connect to Eviqo API');
@@ -252,7 +266,53 @@ export class EviqoMqttGateway extends EventEmitter {
       // Publish initial widget values
       await this.publishInitialWidgetValues(devicePage);
 
+      // Subscribe to command topics for controllable widgets
+      await this.subscribeToCommandTopics(devicePage);
+
       logger.info(`Device "${devicePage.name}" (ID: ${devicePage.id}) initialized`);
+    }
+  }
+
+  /**
+   * Subscribe to command topics for controllable widgets
+   */
+  private async subscribeToCommandTopics(
+    device: EviqoDevicePageModel
+  ): Promise<void> {
+    if (!this.mqttClient || !this.mqttClient.connected) return;
+
+    const dashboard = device.dashboard;
+
+    for (const widget of dashboard.widgets) {
+      for (const module of widget.modules) {
+        for (const stream of module.displayDataStreams) {
+          const controlSettings = CONTROLLABLE_WIDGETS[stream.name];
+          if (controlSettings) {
+            const entityId = normalizeTopicName(stream.name);
+            const commandTopic = `${this.config.topicPrefix}/${device.id}/sensor/${entityId}/set`;
+            const stateTopic = `${this.config.topicPrefix}/${device.id}/sensor/${entityId}/state`;
+
+            // Store mapping for handling commands
+            this.commandTopicMap.set(commandTopic, {
+              deviceId: String(device.id),
+              pin: controlSettings.pin,
+            });
+
+            // Store reverse mapping for updating state after command sent
+            const pinKey = `${device.id}:${controlSettings.pin}`;
+            this.pinToStateTopicMap.set(pinKey, stateTopic);
+
+            // Subscribe to the command topic
+            this.mqttClient.subscribe(commandTopic, (err) => {
+              if (err) {
+                logger.error(`Failed to subscribe to ${commandTopic}: ${err}`);
+              } else {
+                logger.info(`Subscribed to command topic: ${commandTopic}`);
+              }
+            });
+          }
+        }
+      }
     }
   }
 
@@ -320,9 +380,52 @@ export class EviqoMqttGateway extends EventEmitter {
   /**
    * Handle incoming MQTT message (for commands)
    */
-  private handleMqttMessage(topic: string, _message: string): void {
-    // TODO: Implement command handling for switches/buttons
-    logger.debug(`Received MQTT message on ${topic}`);
+  private async handleMqttMessage(topic: string, message: string): Promise<void> {
+    logger.debug(`Received MQTT message on ${topic}: ${message}`);
+
+    // Check if this is a command topic we're tracking
+    const commandInfo = this.commandTopicMap.get(topic);
+    if (!commandInfo) {
+      logger.debug(`Unknown command topic: ${topic}`);
+      return;
+    }
+
+    if (!this.eviqoClient) {
+      logger.error('Cannot send command: Eviqo client not connected');
+      return;
+    }
+
+    const { deviceId, pin } = commandInfo;
+    const value = message.trim();
+
+    logger.info(
+      `Sending command: device=${deviceId} pin=${pin} value=${value}`
+    );
+
+    try {
+      await this.eviqoClient.sendCommand(deviceId, pin, value);
+      logger.info(`Command sent successfully`);
+    } catch (error) {
+      logger.error(`Failed to send command: ${error}`);
+    }
+  }
+
+  /**
+   * Handle command sent event - update MQTT state immediately
+   */
+  private handleCommandSent(command: { deviceId: string; pin: string; value: string }): void {
+    if (!this.mqttClient || !this.mqttClient.connected) return;
+
+    const pinKey = `${command.deviceId}:${command.pin}`;
+    const stateTopic = this.pinToStateTopicMap.get(pinKey);
+
+    if (!stateTopic) {
+      logger.debug(`No state topic mapping for ${pinKey}`);
+      return;
+    }
+
+    logger.info(`Updating state after command: ${stateTopic} = ${command.value}`);
+    this.mqttClient.publish(stateTopic, command.value, { retain: true });
   }
 
   /**

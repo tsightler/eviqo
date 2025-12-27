@@ -4,42 +4,66 @@
 
 import {
   createBinaryMessage,
+  createCommandMessage,
   parseBinaryMessage,
   parseWidgetUpdate,
 } from '../src/utils/protocol';
 
 describe('createBinaryMessage', () => {
   it('should create a header-only message', () => {
-    const message = createBinaryMessage(null, 0x01, 0x02, 0x03, 0x04);
+    const message = createBinaryMessage(null, 0x00, 0x06, 0x00, 0x05);
     expect(message).toBeInstanceOf(Buffer);
     expect(message.length).toBe(4);
-    expect(message[0]).toBe(0x01);
-    expect(message[1]).toBe(0x02);
-    expect(message[2]).toBe(0x03);
-    expect(message[3]).toBe(0x04);
+    expect(message[0]).toBe(0x00); // byte1
+    expect(message[1]).toBe(0x06); // byte2
+    expect(message[2]).toBe(0x00); // byte3
+    expect(message[3]).toBe(0x05); // byte4
   });
 
   it('should create a message with string payload', () => {
-    const message = createBinaryMessage('test', 0x01, 0x02, 0x03, 0x04);
+    const message = createBinaryMessage('test', 0x00, 0x49, 0x01, 0x03);
     expect(message.length).toBeGreaterThan(4);
+    expect(message[0]).toBe(0x00);
+    expect(message[1]).toBe(0x49);
+    expect(message[2]).toBe(0x01);
+    expect(message[3]).toBe(0x03);
     const payload = message.subarray(4).toString('utf-8');
     expect(payload).toBe('test');
   });
 
   it('should create a message with JSON payload', () => {
     const payload = { key: 'value', number: 42 };
-    const message = createBinaryMessage(payload, 0x01, 0x02, 0x03, 0x04);
+    const message = createBinaryMessage(payload, 0x00, 0x02, 0x00, 0x03);
     expect(message.length).toBeGreaterThan(4);
+    expect(message[0]).toBe(0x00);
+    expect(message[1]).toBe(0x02);
+    expect(message[2]).toBe(0x00);
+    expect(message[3]).toBe(0x03);
     const parsedPayload = JSON.parse(message.subarray(4).toString('utf-8'));
     expect(parsedPayload).toEqual(payload);
   });
 
-  it('should use default header bytes', () => {
+  it('should use default values', () => {
     const message = createBinaryMessage(null);
+    expect(message[0]).toBe(0x00); // default byte1
+    expect(message[1]).toBe(0x00); // default byte2
+    expect(message[2]).toBe(0x00); // default byte3
+    expect(message[3]).toBe(0x00); // default byte4
+  });
+
+  it('should create keepalive message like official client', () => {
+    // Official: 00 06 00 06
+    const message = createBinaryMessage(null, 0x00, 0x06, 0x00, 0x06);
+    expect(message.toString('hex')).toBe('00060006');
+  });
+
+  it('should create login message like official client', () => {
+    // Official: 00 02 00 03 {...json...}
+    const message = createBinaryMessage({ email: 'test' }, 0x00, 0x02, 0x00, 0x03);
     expect(message[0]).toBe(0x00);
-    expect(message[1]).toBe(0x00);
+    expect(message[1]).toBe(0x02);
     expect(message[2]).toBe(0x00);
-    expect(message[3]).toBe(0x00);
+    expect(message[3]).toBe(0x03);
   });
 });
 
@@ -107,6 +131,27 @@ describe('parseBinaryMessage', () => {
     expect(payload).toBeDefined();
     expect(typeof payload).toBe('object');
   });
+
+  it('should detect user-driven update messages', () => {
+    // User-driven update has byte2 = 0x19
+    const payloadBytes = Buffer.from('89349\x00vw\x005\x00123.45', 'binary');
+    const header = Buffer.from([0x00, 0x19, 0x00, 0x00]);
+    const message = Buffer.concat([header, payloadBytes]);
+
+    const { header: parsedHeader, payload } = parseBinaryMessage(message);
+
+    expect(parsedHeader).not.toBeNull();
+    expect(parsedHeader?.byte2).toBe(0x19);
+    expect(parsedHeader?.payloadType).toBe('widget_update');
+    expect(payload).toBeDefined();
+    expect(typeof payload).toBe('object');
+
+    // Verify the payload is correctly parsed
+    const update = payload as Record<string, unknown>;
+    expect(update.deviceId).toBe('89349');
+    expect(update.widgetId).toBe('5');
+    expect(update.widgetValue).toBe('123.45');
+  });
 });
 
 describe('parseWidgetUpdate', () => {
@@ -135,5 +180,71 @@ describe('parseWidgetUpdate', () => {
     const result = parseWidgetUpdate(payloadData);
 
     expect(result.error).toBeDefined();
+  });
+});
+
+describe('createCommandMessage', () => {
+  it('should create a command message with correct 4-byte header format', () => {
+    // Web client format: 00 14 00 XX + payload
+    const message = createCommandMessage('51627', '3', '32', 0xbb);
+
+    // 4-byte header: 00 14 00 bb
+    expect(message[0]).toBe(0x00); // First byte
+    expect(message[1]).toBe(0x14); // Command type
+    expect(message[2]).toBe(0x00); // Third byte
+    expect(message[3]).toBe(0xbb); // Message ID (low byte only)
+
+    // Payload starts at byte 4 (no trailing null on value)
+    const payload = message.subarray(4).toString('binary');
+    expect(payload).toBe('51627\x00vw\x003\x0032');
+  });
+
+  it('should create a command message for setting current to 40', () => {
+    const message = createCommandMessage('51627', '3', '40', 0xbc);
+
+    expect(message[0]).toBe(0x00);
+    expect(message[1]).toBe(0x14);
+    expect(message[2]).toBe(0x00);
+    expect(message[3]).toBe(0xbc);
+
+    const payload = message.subarray(4).toString('binary');
+    expect(payload).toBe('51627\x00vw\x003\x0040');
+  });
+
+  it('should create a command message for start charging', () => {
+    // Pin 1 = Start/Stop Charge, value 1 = ON
+    const message = createCommandMessage('51627', '1', '1', 0xbd);
+
+    expect(message[0]).toBe(0x00);
+    expect(message[1]).toBe(0x14);
+    expect(message[2]).toBe(0x00);
+    expect(message[3]).toBe(0xbd);
+
+    const payload = message.subarray(4).toString('binary');
+    expect(payload).toBe('51627\x00vw\x001\x001');
+  });
+
+  it('should handle message ID wrap-around (only low byte used)', () => {
+    const message = createCommandMessage('12345', '3', '16', 0xffff);
+
+    // Only low byte is used for message ID
+    expect(message[3]).toBe(0xff);
+  });
+
+  it('should match expected hex output for 32A command', () => {
+    const message = createCommandMessage('51627', '3', '32', 0xbb);
+    // Expected: 00 14 00 bb 35 31 36 32 37 00 76 77 00 33 00 33 32
+    const expectedHex = '001400bb35313632370076770033003332';
+
+    expect(message.toString('hex')).toBe(expectedHex);
+  });
+
+  it('should match web client command format', () => {
+    // Example from web client: 00 14 00 21 35 31 36 32 37 00 76 77 00 33 00 32 38
+    // This sets Current (pin 3) to 28A on device 51627 with msgId 0x21
+    const message = createCommandMessage('51627', '3', '28', 0x21);
+    const expectedHex = '0014002135313632370076770033003238';
+
+    expect(message.toString('hex')).toBe(expectedHex);
   });
 });

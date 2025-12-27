@@ -11,6 +11,7 @@ import { calculateHash } from './utils/hash';
 import { logger } from './utils/logger';
 import {
   createBinaryMessage,
+  createCommandMessage,
   MessageHeader,
   parseBinaryMessage,
 } from './utils/protocol';
@@ -50,6 +51,7 @@ export class EviqoWebsocketConnection extends EventEmitter {
   private user: EviqoUserModel | null = null;
   private devices: DeviceDocs[] = [];
   private devicePages: EviqoDevicePageModel[] = [];
+  // Message counter shared across all outbound messages, starting at 0
   private messageCounter = 0;
   private widgetIdMap: Map<number, Map<string, DisplayDataStream>> = new Map();
   private widgetNameMap: Map<number, Map<string, DisplayDataStream>> =
@@ -143,6 +145,7 @@ export class EviqoWebsocketConnection extends EventEmitter {
    * Check and send keepalive if needed
    *
    * Sends keepalive message every 15 seconds to maintain connection
+   * Message type 0x06 for keepalive/ping
    */
   async keepalive(): Promise<void> {
     logger.debug('Keepalive check');
@@ -300,7 +303,7 @@ export class EviqoWebsocketConnection extends EventEmitter {
       },
       0x01,
       0x04,
-      0x01,
+      0x00,
       undefined,
       'DEVICE PAGE'
     );
@@ -487,12 +490,59 @@ export class EviqoWebsocketConnection extends EventEmitter {
   }
 
   /**
+   * Send a command to control a device widget
+   *
+   * Command format:
+   * - Byte 0: 0x14 (virtual write command type)
+   * - Bytes 1-2: Message ID (2 bytes, big-endian)
+   * - Payload: deviceId\0vw\0pin\0value\0
+   *
+   * @param deviceId - Device ID string (e.g., "51627")
+   * @param pin - Pin number string (e.g., "3" for Current)
+   * @param value - Value string (e.g., "32" for 32 amps)
+   */
+  async sendCommand(deviceId: string, pin: string, value: string): Promise<void> {
+    if (this.ws === null) {
+      logger.error('Error sending command, websocket not created');
+      return;
+    }
+
+    try {
+      const msgId = this.messageCounter;
+      this.messageCounter += 1;
+
+      const message = createCommandMessage(deviceId, pin, value, msgId);
+
+      logger.info(
+        `SENDING COMMAND: device=${deviceId} pin=${pin} value=${value} [msgId=${msgId}, counter=${this.messageCounter}]`
+      );
+      logger.info(`Outbound hex: ${message.toString('hex')}`);
+
+      this.ws.send(message);
+
+      // Emit commandSent event so listeners can update state immediately
+      this.emit('commandSent', {
+        deviceId,
+        pin,
+        value,
+        time: new Date(),
+      });
+    } catch (error) {
+      logger.error(`Error sending command: ${error}`);
+    }
+  }
+
+  /**
    * Send a binary message to the WebSocket
    *
+   * Message format (4-byte header):
+   * - byte1, byte2, byte3, byte4
+   * - Payload
+   *
    * @param payload - Message payload (object, string, or null)
-   * @param byte1 - First header byte (default: 0x00)
-   * @param byte2 - Second header byte (default: 0x00)
-   * @param byte3 - Third header byte (default: 0x00)
+   * @param byte1 - First header byte
+   * @param byte2 - Second header byte (often message type)
+   * @param byte3 - Third header byte
    * @param byte4 - Fourth header byte (auto-increment if undefined)
    * @param description - Description for logging
    */
@@ -516,14 +566,9 @@ export class EviqoWebsocketConnection extends EventEmitter {
         this.messageCounter += 1;
       }
 
-      const message = createBinaryMessage(
-        payload,
-        byte1,
-        byte2,
-        byte3,
-        actualByte4
-      );
-      logger.debug(`SENDING ${description}`);
+      const message = createBinaryMessage(payload, byte1, byte2, byte3, actualByte4);
+      logger.info(`SENDING ${description} [byte4=${actualByte4}, counter=${this.messageCounter}]`);
+      logger.info(`Outbound hex: ${message.toString('hex')}`);
       this.ws.send(message);
     } catch (error) {
       logger.error(`Error sending message: ${error}`);
@@ -543,7 +588,7 @@ export class EviqoWebsocketConnection extends EventEmitter {
     }
 
     try {
-      await this.issueInitialization();
+      // Skip init - official client doesn't send it
       await this.login();
       await this.queryDevices();
 

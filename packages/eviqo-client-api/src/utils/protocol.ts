@@ -63,7 +63,8 @@ export function parseBinaryMessage(data: Buffer): ParsedMessage {
     const payloadData = data.subarray(4);
 
     // Check if this is a widget update message (byte2 == 0x14)
-    if (byte2 === 0x14) {
+    // or a user-driven update message (byte2 == 0x19)
+    if (byte2 === 0x14 || byte2 === 0x19) {
       payloadType = 'widget_update';
       payload = parseWidgetUpdate(payloadData);
     } else {
@@ -184,11 +185,15 @@ export function parseWidgetUpdate(
 /**
  * Create binary message with 4-byte header
  *
+ * Message format:
+ * - 4 bytes: header (byte1, byte2, byte3, byte4)
+ * - Remaining bytes: payload (JSON, ASCII, UTF-8, or binary)
+ *
  * @param payload - Message payload (object, string, or null)
- * @param byte1 - First header byte (default: 0x00)
- * @param byte2 - Second header byte (default: 0x00)
- * @param byte3 - Third header byte (default: 0x00)
- * @param byte4 - Fourth header byte (default: 0x00)
+ * @param byte1 - First header byte
+ * @param byte2 - Second header byte (often message type)
+ * @param byte3 - Third header byte
+ * @param byte4 - Fourth header byte (often message ID)
  * @returns Binary message as Buffer
  */
 export function createBinaryMessage(
@@ -198,7 +203,7 @@ export function createBinaryMessage(
   byte3 = 0x00,
   byte4 = 0x00
 ): Buffer {
-  // Build header
+  // Build 4-byte header
   const header = Buffer.from([byte1, byte2, byte3, byte4]);
 
   // Add payload if present
@@ -211,6 +216,37 @@ export function createBinaryMessage(
   }
 
   return header;
+}
+
+/**
+ * Create a command message for controlling device widgets
+ *
+ * Command format (web client):
+ * - 4 bytes: header (0x00, 0x14, 0x00, msgId)
+ * - Payload: deviceId\0vw\0pin\0value (no trailing null)
+ *
+ * @param deviceId - Device ID string (e.g., "51627")
+ * @param pin - Pin number string (e.g., "3" for Current)
+ * @param value - Value string (e.g., "32" for 32 amps)
+ * @param messageId - Message ID (0-255, goes in byte4)
+ * @returns Command message as Buffer
+ */
+export function createCommandMessage(
+  deviceId: string,
+  pin: string,
+  value: string,
+  messageId: number
+): Buffer {
+  // 4-byte header: 00 14 00 XX
+  const header = Buffer.from([0x00, 0x14, 0x00, messageId & 0xff]);
+
+  // Build payload: deviceId\0vw\0pin\0value (no trailing null on value)
+  const payload = Buffer.from(
+    `${deviceId}\x00vw\x00${pin}\x00${value}`,
+    'binary'
+  );
+
+  return Buffer.concat([header, payload]);
 }
 
 /**
