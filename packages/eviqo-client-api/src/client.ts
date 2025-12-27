@@ -51,7 +51,8 @@ export class EviqoWebsocketConnection extends EventEmitter {
   private user: EviqoUserModel | null = null;
   private devices: DeviceDocs[] = [];
   private devicePages: EviqoDevicePageModel[] = [];
-  private messageCounter = 0;
+  // Start message counter at 256 (0x0100) to match expected client ID range (0x01XX)
+  private messageCounter = 0x0100;
   private widgetIdMap: Map<number, Map<string, DisplayDataStream>> = new Map();
   private widgetNameMap: Map<number, Map<string, DisplayDataStream>> =
     new Map();
