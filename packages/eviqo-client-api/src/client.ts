@@ -370,6 +370,64 @@ export class EviqoWebsocketConnection extends EventEmitter {
     }
   }
 
+  /**
+   * Handle widget update message
+   *
+   * Looks up widget information and emits widgetUpdate event
+   *
+   * @param payload - Parsed widget update payload from protocol
+   */
+  private handleWidgetUpdate(payload: Record<string, unknown>): void {
+    const { widgetId, deviceId, widgetValue } = payload as {
+      widgetId: string;
+      deviceId: string;
+      widgetValue: string;
+    };
+
+    if (!widgetId || !deviceId) {
+      logger.debug('Widget update missing required fields');
+      return;
+    }
+
+    // Find the device index for this device ID
+    let deviceIdx = -1;
+    for (let i = 0; i < this.devices.length; i++) {
+      if (String(this.devices[i].deviceId) === deviceId) {
+        deviceIdx = i;
+        break;
+      }
+    }
+
+    if (deviceIdx === -1) {
+      logger.debug(`Unknown device ID in widget update: ${deviceId}`);
+      return;
+    }
+
+    const deviceWidgetIdMap = this.widgetIdMap.get(deviceIdx);
+    if (!deviceWidgetIdMap) {
+      logger.debug(`No widget map for device index ${deviceIdx}`);
+      return;
+    }
+
+    const widgetStream = deviceWidgetIdMap.get(widgetId);
+    if (!widgetStream) {
+      logger.debug(`Unknown widget ID: ${widgetId}`);
+      return;
+    }
+
+    logger.info(
+      `${this.getTimestamp()} [${widgetStream.name}] = ${widgetValue}`
+    );
+
+    this.emit('widgetUpdate', {
+      widgetId,
+      widgetStream,
+      deviceId,
+      widgetValue,
+      time: new Date(),
+    });
+  }
+
 
   /**
    * Listen for incoming messages
