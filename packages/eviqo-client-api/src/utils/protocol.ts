@@ -215,6 +215,42 @@ export function createBinaryMessage(
 }
 
 /**
+ * Create a command message for controlling device widgets
+ *
+ * Command format:
+ * - Byte 0: 0x14 (virtual write command type)
+ * - Bytes 1-2: Message ID (2 bytes, big-endian)
+ * - Payload: deviceId\0vw\0pin\0value\0
+ *
+ * @param deviceId - Device ID string (e.g., "51627")
+ * @param pin - Pin number string (e.g., "3" for Current)
+ * @param value - Value string (e.g., "32" for 32 amps)
+ * @param messageId - Message ID (0-65535)
+ * @returns Command message as Buffer
+ */
+export function createCommandMessage(
+  deviceId: string,
+  pin: string,
+  value: string,
+  messageId: number
+): Buffer {
+  // Command byte
+  const cmdByte = Buffer.from([0x14]);
+
+  // Message ID (2 bytes, big-endian)
+  const msgIdBytes = Buffer.alloc(2);
+  msgIdBytes.writeUInt16BE(messageId & 0xffff, 0);
+
+  // Build payload: deviceId\0vw\0pin\0value\0
+  const payload = Buffer.from(
+    `${deviceId}\x00vw\x00${pin}\x00${value}\x00`,
+    'binary'
+  );
+
+  return Buffer.concat([cmdByte, msgIdBytes, payload]);
+}
+
+/**
  * Check if a string contains only printable characters
  *
  * @param str - String to check

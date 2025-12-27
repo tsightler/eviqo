@@ -11,6 +11,7 @@ import { calculateHash } from './utils/hash';
 import { logger } from './utils/logger';
 import {
   createBinaryMessage,
+  createCommandMessage,
   MessageHeader,
   parseBinaryMessage,
 } from './utils/protocol';
@@ -483,6 +484,41 @@ export class EviqoWebsocketConnection extends EventEmitter {
     } catch (error) {
       logger.error(`Error while listening: ${error}`);
       return { header: null, payload: null };
+    }
+  }
+
+  /**
+   * Send a command to control a device widget
+   *
+   * Command format:
+   * - Byte 0: 0x14 (virtual write command type)
+   * - Bytes 1-2: Message ID (2 bytes, big-endian)
+   * - Payload: deviceId\0vw\0pin\0value\0
+   *
+   * @param deviceId - Device ID string (e.g., "51627")
+   * @param pin - Pin number string (e.g., "3" for Current)
+   * @param value - Value string (e.g., "32" for 32 amps)
+   */
+  async sendCommand(deviceId: string, pin: string, value: string): Promise<void> {
+    if (this.ws === null) {
+      logger.error('Error sending command, websocket not created');
+      return;
+    }
+
+    try {
+      const msgId = this.messageCounter;
+      this.messageCounter += 1;
+
+      const message = createCommandMessage(deviceId, pin, value, msgId);
+
+      logger.debug(
+        `SENDING COMMAND: device=${deviceId} pin=${pin} value=${value}`
+      );
+      logger.debug(`Command hex: ${message.toString('hex')}`);
+
+      this.ws.send(message);
+    } catch (error) {
+      logger.error(`Error sending command: ${error}`);
     }
   }
 

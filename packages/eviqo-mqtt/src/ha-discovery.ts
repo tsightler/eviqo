@@ -36,6 +36,11 @@ export interface HaEntityConfig {
   command_topic?: string;
   payload_on?: string;
   payload_off?: string;
+  // Number specific
+  min?: number;
+  max?: number;
+  step?: number;
+  mode?: string;
 }
 
 /**
@@ -180,6 +185,57 @@ export function createBinarySensorConfig(
 }
 
 /**
+ * Controllable widget pin mappings
+ * Maps widget names to their control pins and settings
+ */
+export const CONTROLLABLE_WIDGETS: Record<
+  string,
+  { pin: string; min: number; max: number; step: number; mode: string; icon?: string }
+> = {
+  Current: { pin: '3', min: 6, max: 32, step: 1, mode: 'slider', icon: 'mdi:current-ac' },
+};
+
+/**
+ * Create Home Assistant number entity discovery config
+ */
+export function createNumberConfig(
+  discoveryPrefix: string,
+  topicPrefix: string,
+  device: EviqoDevicePageModel,
+  name: string,
+  settings: { pin: string; min: number; max: number; step: number; mode: string; icon?: string }
+): { topic: string; payload: HaEntityConfig } {
+  const deviceId = `eviqo_${device.id}`;
+  const entityId = normalizeTopicName(name);
+  const uniqueId = `${deviceId}_${entityId}_control`;
+
+  const config: HaEntityConfig = {
+    name: `${name} Limit`,
+    unique_id: uniqueId,
+    state_topic: `${topicPrefix}/${device.id}/sensor/${entityId}/state`,
+    command_topic: `${topicPrefix}/${device.id}/number/${entityId}/set`,
+    device: createDeviceInfo(device),
+    availability_topic: `${topicPrefix}/${device.id}/status`,
+    payload_available: 'online',
+    payload_not_available: 'offline',
+    min: settings.min,
+    max: settings.max,
+    step: settings.step,
+    mode: settings.mode,
+    unit_of_measurement: 'A',
+    device_class: 'current',
+  };
+
+  if (settings.icon) {
+    config.icon = settings.icon;
+  }
+
+  const topic = `${discoveryPrefix}/number/${deviceId}/${entityId}_control/config`;
+
+  return { topic, payload: config };
+}
+
+/**
  * Publish Home Assistant discovery configs for a device
  */
 export async function publishDeviceDiscovery(
@@ -202,6 +258,23 @@ export async function publishDeviceDiscovery(
         );
 
         await publishRetained(mqttClient, topic, JSON.stringify(payload));
+
+        // Check if this widget is controllable
+        const controlSettings = CONTROLLABLE_WIDGETS[stream.name];
+        if (controlSettings) {
+          const numberConfig = createNumberConfig(
+            discoveryPrefix,
+            topicPrefix,
+            device,
+            stream.name,
+            controlSettings
+          );
+          await publishRetained(
+            mqttClient,
+            numberConfig.topic,
+            JSON.stringify(numberConfig.payload)
+          );
+        }
       }
     }
   }
@@ -245,6 +318,12 @@ export async function removeDeviceDiscovery(
         const sensorId = normalizeTopicName(stream.name);
         const topic = `${discoveryPrefix}/sensor/${deviceId}/${sensorId}/config`;
         await publishRetained(mqttClient, topic, '');
+
+        // Remove number entity configs for controllable widgets
+        if (CONTROLLABLE_WIDGETS[stream.name]) {
+          const numberTopic = `${discoveryPrefix}/number/${deviceId}/${sensorId}_control/config`;
+          await publishRetained(mqttClient, numberTopic, '');
+        }
       }
     }
   }
