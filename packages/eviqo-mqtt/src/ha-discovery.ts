@@ -7,6 +7,7 @@
 
 import type { MqttClient } from 'mqtt';
 import type { EviqoDevicePageModel, DisplayDataStream } from 'eviqo-client-api';
+import { logger } from 'eviqo-client-api';
 
 export interface DeviceInfo {
   identifiers: string[];
@@ -246,6 +247,17 @@ export async function publishDeviceDiscovery(
 ): Promise<void> {
   const dashboard = device.dashboard;
 
+  // Log all available widget names for debugging
+  const allWidgetNames: string[] = [];
+  for (const widget of dashboard.widgets) {
+    for (const module of widget.modules) {
+      for (const stream of module.displayDataStreams) {
+        allWidgetNames.push(`"${stream.name}" (pin ${stream.pin})`);
+      }
+    }
+  }
+  logger.info(`Available widgets: ${allWidgetNames.join(', ')}`);
+
   // Publish sensor configs for each widget stream
   for (const widget of dashboard.widgets) {
     for (const module of widget.modules) {
@@ -261,6 +273,7 @@ export async function publishDeviceDiscovery(
 
         // Check if this widget is controllable
         const controlSettings = CONTROLLABLE_WIDGETS[stream.name];
+        logger.debug(`Checking widget "${stream.name}" for control settings: ${controlSettings ? 'found' : 'not found'}`);
         if (controlSettings) {
           const numberConfig = createNumberConfig(
             discoveryPrefix,
@@ -269,6 +282,8 @@ export async function publishDeviceDiscovery(
             stream.name,
             controlSettings
           );
+          logger.info(`Publishing number entity: ${numberConfig.topic}`);
+          logger.debug(`Number config payload: ${JSON.stringify(numberConfig.payload)}`);
           await publishRetained(
             mqttClient,
             numberConfig.topic,
