@@ -511,10 +511,10 @@ export class EviqoWebsocketConnection extends EventEmitter {
 
       const message = createCommandMessage(deviceId, pin, value, msgId);
 
-      logger.debug(
+      logger.info(
         `SENDING COMMAND: device=${deviceId} pin=${pin} value=${value}`
       );
-      logger.debug(`Command hex: ${message.toString('hex')}`);
+      logger.info(`Command hex: ${message.toString('hex')}`);
 
       this.ws.send(message);
     } catch (error) {
