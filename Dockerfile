@@ -1,5 +1,28 @@
-ARG BUILD_FROM=node:20-alpine
-FROM ${BUILD_FROM}
+# Build stage
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY packages/eviqo-client-api/package*.json ./packages/eviqo-client-api/
+COPY packages/eviqo-mqtt/package*.json ./packages/eviqo-mqtt/
+
+# Install ALL dependencies (including dev for TypeScript)
+RUN npm ci
+
+# Copy source code
+COPY packages/ ./packages/
+COPY tsconfig*.json ./
+
+# Build TypeScript
+RUN npm run build
+
+# Prune dev dependencies
+RUN npm prune --omit=dev
+
+# Runtime stage
+FROM node:20-alpine
 
 # Build arguments
 ARG BUILD_ARCH=amd64
@@ -41,20 +64,10 @@ RUN curl -L -s "https://github.com/hassio-addons/bashio/archive/v${BASHIO_VERSIO
 # Set working directory
 WORKDIR /app/eviqo-mqtt
 
-# Copy package files first for better layer caching
-COPY package*.json ./
-COPY packages/eviqo-client-api/package*.json ./packages/eviqo-client-api/
-COPY packages/eviqo-mqtt/package*.json ./packages/eviqo-mqtt/
-
-# Install dependencies
-RUN npm ci --omit=dev
-
-# Copy source code
-COPY packages/ ./packages/
-COPY tsconfig*.json ./
-
-# Build TypeScript
-RUN npm run build
+# Copy built application from builder (only production deps + compiled JS)
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/package*.json ./
 
 # Copy init scripts
 COPY init/services.d/ /etc/services.d/
