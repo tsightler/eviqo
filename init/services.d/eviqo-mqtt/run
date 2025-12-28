@@ -1,0 +1,92 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Eviqo MQTT Service Startup Script
+# ==============================================================================
+
+# Detect if running as Home Assistant addon
+if bashio::supervisor.ping 2>/dev/null; then
+    bashio::log.info "Detected Home Assistant Addon environment"
+    export RUNMODE="addon"
+
+    # Get Eviqo credentials from addon config
+    if bashio::config.has_value "eviqo_email"; then
+        export EVIQO_EMAIL=$(bashio::config "eviqo_email")
+    fi
+    if bashio::config.has_value "eviqo_password"; then
+        export EVIQO_PASSWORD=$(bashio::config "eviqo_password")
+    fi
+
+    # Get MQTT settings from addon config or auto-discover
+    if bashio::config.has_value "mqtt_host" && [[ "$(bashio::config 'mqtt_host')" != "" ]]; then
+        # Manual MQTT configuration
+        export MQTT_HOST=$(bashio::config "mqtt_host")
+        export MQTT_PORT=$(bashio::config "mqtt_port" "1883")
+        if bashio::config.has_value "mqtt_username"; then
+            export MQTT_USERNAME=$(bashio::config "mqtt_username")
+        fi
+        if bashio::config.has_value "mqtt_password"; then
+            export MQTT_PASSWORD=$(bashio::config "mqtt_password")
+        fi
+        bashio::log.info "Using manual MQTT configuration: ${MQTT_HOST}:${MQTT_PORT}"
+    elif bashio::services.available "mqtt"; then
+        # Auto-discover MQTT from Home Assistant
+        export MQTT_HOST=$(bashio::services mqtt "host")
+        export MQTT_PORT=$(bashio::services mqtt "port")
+        export MQTT_USERNAME=$(bashio::services mqtt "username")
+        export MQTT_PASSWORD=$(bashio::services mqtt "password")
+        bashio::log.info "Using MQTT auto-discovery: ${MQTT_HOST}:${MQTT_PORT}"
+    else
+        bashio::log.error "No MQTT configuration found!"
+        bashio::log.error "Please configure MQTT settings or install the Mosquitto addon"
+        exit 1
+    fi
+
+    # Get optional settings
+    if bashio::config.has_value "topic_prefix" && [[ "$(bashio::config 'topic_prefix')" != "" ]]; then
+        export EVIQO_TOPIC_PREFIX=$(bashio::config "topic_prefix")
+    fi
+    if bashio::config.has_value "discovery_prefix" && [[ "$(bashio::config 'discovery_prefix')" != "" ]]; then
+        export HASS_DISCOVERY_PREFIX=$(bashio::config "discovery_prefix")
+    fi
+    if bashio::config.has_value "poll_interval"; then
+        export EVIQO_POLL_INTERVAL=$(bashio::config "poll_interval")
+    fi
+    if bashio::config.true "debug"; then
+        export LOG_LEVEL="debug"
+    fi
+
+else
+    bashio::log.info "Running in standalone Docker mode"
+    export RUNMODE="docker"
+
+    # In Docker mode, all config comes from environment variables
+    # Validate required environment variables
+    if [[ -z "${EVIQO_EMAIL:-}" ]]; then
+        bashio::log.error "EVIQO_EMAIL environment variable is required"
+        exit 1
+    fi
+    if [[ -z "${EVIQO_PASSWORD:-}" ]]; then
+        bashio::log.error "EVIQO_PASSWORD environment variable is required"
+        exit 1
+    fi
+
+    # Default MQTT settings if not provided
+    export MQTT_HOST="${MQTT_HOST:-localhost}"
+    export MQTT_PORT="${MQTT_PORT:-1883}"
+fi
+
+# Display startup information
+bashio::log.info "========================================"
+bashio::log.info " Eviqo MQTT Gateway"
+bashio::log.info "========================================"
+bashio::log.info "Mode:       ${RUNMODE}"
+bashio::log.info "MQTT:       ${MQTT_HOST}:${MQTT_PORT}"
+bashio::log.info "Node.js:    $(node --version)"
+bashio::log.info "========================================"
+
+# Change to application directory
+cd /app/eviqo-mqtt/packages/eviqo-mqtt || exit 1
+
+# Start the application
+exec node dist/cli.js
