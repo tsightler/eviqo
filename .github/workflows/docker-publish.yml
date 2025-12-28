@@ -93,22 +93,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Create and push manifests
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
 
           # Create versioned manifest
-          docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION} \
+          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-amd64:${VERSION} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-aarch64:${VERSION} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-armv7:${VERSION} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-armhf:${VERSION}
-          docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}
 
           # Also tag as latest
-          docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-amd64:${VERSION} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-aarch64:${VERSION} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-armv7:${VERSION} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-armhf:${VERSION}
-          docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
