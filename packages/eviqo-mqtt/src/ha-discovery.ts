@@ -141,8 +141,8 @@ export function createSensorConfig(
 
   const mapping = WIDGET_MAPPINGS[stream.name] || {};
 
-  // Use units from the stream if available, otherwise from mapping
-  const unit = stream.units || mapping.unit;
+  // Use units from mapping (Eviqo often returns "None" which is not useful)
+  const unit = mapping.unit;
 
   const config: HaEntityConfig = {
     name: stream.name,
