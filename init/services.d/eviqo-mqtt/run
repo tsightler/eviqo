@@ -20,7 +20,7 @@ if bashio::supervisor.ping 2>/dev/null; then
     # Get MQTT URL from addon config or auto-discover
     if bashio::config.has_value "mqtt_url" && [[ "$(bashio::config 'mqtt_url')" != "" ]]; then
         # Manual MQTT URL provided
-        export MQTT_URL=$(bashio::config "mqtt_url")
+        export EVIQO_MQTT_URL=$(bashio::config "mqtt_url")
         bashio::log.info "Using configured MQTT URL"
     elif bashio::services.available "mqtt"; then
         # Auto-discover MQTT from Home Assistant
@@ -30,9 +30,9 @@ if bashio::supervisor.ping 2>/dev/null; then
         MQTT_PASS=$(bashio::services mqtt "password")
 
         if [[ -n "${MQTT_USER}" ]] && [[ -n "${MQTT_PASS}" ]]; then
-            export MQTT_URL="mqtt://${MQTT_USER}:${MQTT_PASS}@${MQTT_HOST}:${MQTT_PORT}"
+            export EVIQO_MQTT_URL="mqtt://${MQTT_USER}:${MQTT_PASS}@${MQTT_HOST}:${MQTT_PORT}"
         else
-            export MQTT_URL="mqtt://${MQTT_HOST}:${MQTT_PORT}"
+            export EVIQO_MQTT_URL="mqtt://${MQTT_HOST}:${MQTT_PORT}"
         fi
         bashio::log.info "Using MQTT auto-discovery: ${MQTT_HOST}:${MQTT_PORT}"
     else
@@ -43,7 +43,7 @@ if bashio::supervisor.ping 2>/dev/null; then
 
     # Get optional settings
     if bashio::config.true "debug"; then
-        export LOG_LEVEL="debug"
+        export EVIQO_LOG_LEVEL="debug"
     fi
 
 else
@@ -60,8 +60,8 @@ else
         bashio::log.error "EVIQO_PASSWORD environment variable is required"
         exit 1
     fi
-    if [[ -z "${MQTT_URL:-}" ]]; then
-        bashio::log.error "MQTT_URL environment variable is required"
+    if [[ -z "${EVIQO_MQTT_URL:-}" ]]; then
+        bashio::log.error "EVIQO_MQTT_URL environment variable is required"
         exit 1
     fi
 fi

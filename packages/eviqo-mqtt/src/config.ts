@@ -27,12 +27,12 @@ export interface GatewayConfig {
  * Build MQTT URL from environment
  */
 function buildMqttUrl(): string {
-  // Use MQTT_URL environment variable
-  if (process.env.MQTT_URL) {
-    return process.env.MQTT_URL;
+  // Use EVIQO_MQTT_URL environment variable
+  if (process.env.EVIQO_MQTT_URL) {
+    return process.env.EVIQO_MQTT_URL;
   }
 
-  throw new Error('MQTT_URL environment variable is required');
+  throw new Error('EVIQO_MQTT_URL environment variable is required');
 }
 
 /**
@@ -53,7 +53,7 @@ export function loadConfig(): GatewayConfig {
     topicPrefix: process.env.EVIQO_TOPIC_PREFIX || 'eviqo',
     discoveryPrefix: process.env.HASS_DISCOVERY_PREFIX || 'homeassistant',
     pollInterval: parseInt(process.env.EVIQO_POLL_INTERVAL || '30000', 10),
-    logLevel: (process.env.LOG_LEVEL as GatewayConfig['logLevel']) || 'info',
+    logLevel: (process.env.EVIQO_LOG_LEVEL as GatewayConfig['logLevel']) || 'info',
   };
 
   // Validate required configuration

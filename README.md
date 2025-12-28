@@ -32,7 +32,7 @@ docker run -d \
   --restart unless-stopped \
   -e EVIQO_EMAIL=your@email.com \
   -e EVIQO_PASSWORD=yourpassword \
-  -e MQTT_URL=mqtt://192.168.1.100:1883 \
+  -e EVIQO_MQTT_URL=mqtt://192.168.1.100:1883 \
   ghcr.io/tsightler/eviqo-mqtt-amd64
 ```
 
@@ -49,10 +49,10 @@ services:
     environment:
       - EVIQO_EMAIL=your@email.com
       - EVIQO_PASSWORD=yourpassword
-      - MQTT_URL=mqtt://192.168.1.100:1883
+      - EVIQO_MQTT_URL=mqtt://192.168.1.100:1883
       # With authentication:
-      # - MQTT_URL=mqtt://user:pass@192.168.1.100:1883
-      # - LOG_LEVEL=debug
+      # - EVIQO_MQTT_URL=mqtt://user:pass@192.168.1.100:1883
+      # - EVIQO_LOG_LEVEL=debug
 ```
 
 ### NPM (Development)
@@ -61,7 +61,7 @@ services:
 # Set credentials
 export EVIQO_EMAIL="user@example.com"
 export EVIQO_PASSWORD="password"
-export MQTT_URL="mqtt://localhost:1883"
+export EVIQO_MQTT_URL="mqtt://localhost:1883"
 
 # Run the gateway
 npx eviqo-mqtt

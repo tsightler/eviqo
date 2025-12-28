@@ -62,7 +62,7 @@ docker run -d \
   --name eviqo-mqtt \
   -e EVIQO_EMAIL=your@email.com \
   -e EVIQO_PASSWORD=yourpassword \
-  -e MQTT_URL=mqtt://192.168.1.100:1883 \
+  -e EVIQO_MQTT_URL=mqtt://192.168.1.100:1883 \
   ghcr.io/tsightler/eviqo-mqtt-amd64
 ```
 
@@ -72,8 +72,8 @@ docker run -d \
 |----------|----------|-------------|
 | EVIQO_EMAIL | Yes | Eviqo account email |
 | EVIQO_PASSWORD | Yes | Eviqo account password |
-| MQTT_URL | Yes | MQTT broker URL (mqtt://[user:pass@]host[:port]) |
-| LOG_LEVEL | No | Log level: debug, info, warn, error (default: info) |
+| EVIQO_MQTT_URL | Yes | MQTT broker URL (mqtt://[user:pass@]host[:port]) |
+| EVIQO_LOG_LEVEL | No | Log level: debug, info, warn, error (default: info) |
 
 ## Troubleshooting
 

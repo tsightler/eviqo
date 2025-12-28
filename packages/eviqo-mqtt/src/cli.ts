@@ -34,20 +34,20 @@ Options:
 Environment Variables:
   EVIQO_EMAIL        Eviqo account email (required)
   EVIQO_PASSWORD     Eviqo account password (required)
-  MQTT_URL           MQTT broker URL (required)
+  EVIQO_MQTT_URL     MQTT broker URL (required)
                      Format: mqtt://[user:pass@]host[:port]
-  LOG_LEVEL          Log level: debug, info, warn, error (default: info)
+  EVIQO_LOG_LEVEL    Log level: debug, info, warn, error (default: info)
 
 Examples:
   # Start the gateway
   EVIQO_EMAIL=user@example.com EVIQO_PASSWORD=pass \\
-    MQTT_URL=mqtt://192.168.1.100:1883 eviqo-mqtt
+    EVIQO_MQTT_URL=mqtt://192.168.1.100:1883 eviqo-mqtt
 
   # With MQTT authentication
-  MQTT_URL=mqtt://user:pass@192.168.1.100:1883 eviqo-mqtt
+  EVIQO_MQTT_URL=mqtt://user:pass@192.168.1.100:1883 eviqo-mqtt
 
   # Start with debug logging
-  eviqo-mqtt --debug
+  EVIQO_LOG_LEVEL=debug eviqo-mqtt
 `);
 }
 
