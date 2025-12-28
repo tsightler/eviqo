@@ -17,41 +17,31 @@ if bashio::supervisor.ping 2>/dev/null; then
         export EVIQO_PASSWORD=$(bashio::config "eviqo_password")
     fi
 
-    # Get MQTT settings from addon config or auto-discover
-    if bashio::config.has_value "mqtt_host" && [[ "$(bashio::config 'mqtt_host')" != "" ]]; then
-        # Manual MQTT configuration
-        export MQTT_HOST=$(bashio::config "mqtt_host")
-        export MQTT_PORT=$(bashio::config "mqtt_port" "1883")
-        if bashio::config.has_value "mqtt_username"; then
-            export MQTT_USERNAME=$(bashio::config "mqtt_username")
-        fi
-        if bashio::config.has_value "mqtt_password"; then
-            export MQTT_PASSWORD=$(bashio::config "mqtt_password")
-        fi
-        bashio::log.info "Using manual MQTT configuration: ${MQTT_HOST}:${MQTT_PORT}"
+    # Get MQTT URL from addon config or auto-discover
+    if bashio::config.has_value "mqtt_url" && [[ "$(bashio::config 'mqtt_url')" != "" ]]; then
+        # Manual MQTT URL provided
+        export MQTT_URL=$(bashio::config "mqtt_url")
+        bashio::log.info "Using configured MQTT URL"
     elif bashio::services.available "mqtt"; then
         # Auto-discover MQTT from Home Assistant
-        export MQTT_HOST=$(bashio::services mqtt "host")
-        export MQTT_PORT=$(bashio::services mqtt "port")
-        export MQTT_USERNAME=$(bashio::services mqtt "username")
-        export MQTT_PASSWORD=$(bashio::services mqtt "password")
+        MQTT_HOST=$(bashio::services mqtt "host")
+        MQTT_PORT=$(bashio::services mqtt "port")
+        MQTT_USER=$(bashio::services mqtt "username")
+        MQTT_PASS=$(bashio::services mqtt "password")
+
+        if [[ -n "${MQTT_USER}" ]] && [[ -n "${MQTT_PASS}" ]]; then
+            export MQTT_URL="mqtt://${MQTT_USER}:${MQTT_PASS}@${MQTT_HOST}:${MQTT_PORT}"
+        else
+            export MQTT_URL="mqtt://${MQTT_HOST}:${MQTT_PORT}"
+        fi
         bashio::log.info "Using MQTT auto-discovery: ${MQTT_HOST}:${MQTT_PORT}"
     else
         bashio::log.error "No MQTT configuration found!"
-        bashio::log.error "Please configure MQTT settings or install the Mosquitto addon"
+        bashio::log.error "Please configure mqtt_url or install the Mosquitto addon"
         exit 1
     fi
 
     # Get optional settings
-    if bashio::config.has_value "topic_prefix" && [[ "$(bashio::config 'topic_prefix')" != "" ]]; then
-        export EVIQO_TOPIC_PREFIX=$(bashio::config "topic_prefix")
-    fi
-    if bashio::config.has_value "discovery_prefix" && [[ "$(bashio::config 'discovery_prefix')" != "" ]]; then
-        export HASS_DISCOVERY_PREFIX=$(bashio::config "discovery_prefix")
-    fi
-    if bashio::config.has_value "poll_interval"; then
-        export EVIQO_POLL_INTERVAL=$(bashio::config "poll_interval")
-    fi
     if bashio::config.true "debug"; then
         export LOG_LEVEL="debug"
     fi
@@ -70,10 +60,10 @@ else
         bashio::log.error "EVIQO_PASSWORD environment variable is required"
         exit 1
     fi
-
-    # Default MQTT settings if not provided
-    export MQTT_HOST="${MQTT_HOST:-localhost}"
-    export MQTT_PORT="${MQTT_PORT:-1883}"
+    if [[ -z "${MQTT_URL:-}" ]]; then
+        bashio::log.error "MQTT_URL environment variable is required"
+        exit 1
+    fi
 fi
 
 # Display startup information
@@ -81,7 +71,6 @@ bashio::log.info "========================================"
 bashio::log.info " Eviqo MQTT Gateway"
 bashio::log.info "========================================"
 bashio::log.info "Mode:       ${RUNMODE}"
-bashio::log.info "MQTT:       ${MQTT_HOST}:${MQTT_PORT}"
 bashio::log.info "Node.js:    $(node --version)"
 bashio::log.info "========================================"
 

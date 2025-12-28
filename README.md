@@ -32,7 +32,7 @@ docker run -d \
   --restart unless-stopped \
   -e EVIQO_EMAIL=your@email.com \
   -e EVIQO_PASSWORD=yourpassword \
-  -e MQTT_HOST=192.168.1.100 \
+  -e MQTT_URL=mqtt://192.168.1.100:1883 \
   ghcr.io/tsightler/eviqo-mqtt-amd64
 ```
 
@@ -49,13 +49,9 @@ services:
     environment:
       - EVIQO_EMAIL=your@email.com
       - EVIQO_PASSWORD=yourpassword
-      - MQTT_HOST=192.168.1.100
-      - MQTT_PORT=1883
-      # Optional settings:
-      # - MQTT_USERNAME=user
-      # - MQTT_PASSWORD=pass
-      # - EVIQO_TOPIC_PREFIX=eviqo
-      # - HASS_DISCOVERY_PREFIX=homeassistant
+      - MQTT_URL=mqtt://192.168.1.100:1883
+      # With authentication:
+      # - MQTT_URL=mqtt://user:pass@192.168.1.100:1883
       # - LOG_LEVEL=debug
 ```
 
@@ -65,7 +61,7 @@ services:
 # Set credentials
 export EVIQO_EMAIL="user@example.com"
 export EVIQO_PASSWORD="password"
-export MQTT_HOST="localhost"
+export MQTT_URL="mqtt://localhost:1883"
 
 # Run the gateway
 npx eviqo-mqtt

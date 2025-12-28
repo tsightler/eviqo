@@ -34,14 +34,14 @@ This addon bridges your Eviqo EV charger to MQTT, enabling seamless integration 
 The addon supports two MQTT configuration methods:
 
 #### Auto-Discovery (Recommended)
-If you have the Mosquitto broker addon installed, MQTT settings will be automatically discovered. Just leave the MQTT fields empty.
+If you have the Mosquitto broker addon installed, MQTT settings will be automatically discovered. Just leave the `mqtt_url` field empty.
 
 #### Manual Configuration
 If using an external MQTT broker, configure:
-- **mqtt_host**: MQTT broker hostname or IP
-- **mqtt_port**: MQTT broker port (default: 1883)
-- **mqtt_username**: MQTT username (if required)
-- **mqtt_password**: MQTT password (if required)
+- **mqtt_url**: Full MQTT broker URL
+  - Format: `mqtt://host:port` or `mqtt://user:pass@host:port`
+  - Example: `mqtt://192.168.1.100:1883`
+  - With auth: `mqtt://myuser:mypass@192.168.1.100:1883`
 
 ### Eviqo Credentials
 
@@ -49,12 +49,9 @@ Enter your Eviqo app credentials:
 - **eviqo_email**: Your Eviqo account email
 - **eviqo_password**: Your Eviqo account password
 
-### Advanced Options
+### Debug Mode
 
-- **topic_prefix**: MQTT topic prefix (default: `eviqo`)
-- **discovery_prefix**: Home Assistant discovery prefix (default: `homeassistant`)
-- **poll_interval**: Update interval in milliseconds (default: 30000)
-- **debug**: Enable debug logging
+Enable **debug** to see detailed logging for troubleshooting.
 
 ## Docker Standalone Usage
 
@@ -65,25 +62,18 @@ docker run -d \
   --name eviqo-mqtt \
   -e EVIQO_EMAIL=your@email.com \
   -e EVIQO_PASSWORD=yourpassword \
-  -e MQTT_HOST=192.168.1.100 \
-  -e MQTT_PORT=1883 \
+  -e MQTT_URL=mqtt://192.168.1.100:1883 \
   ghcr.io/tsightler/eviqo-mqtt-amd64
 ```
 
 ### Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| EVIQO_EMAIL | Yes | - | Eviqo account email |
-| EVIQO_PASSWORD | Yes | - | Eviqo account password |
-| MQTT_HOST | No | localhost | MQTT broker host |
-| MQTT_PORT | No | 1883 | MQTT broker port |
-| MQTT_USERNAME | No | - | MQTT username |
-| MQTT_PASSWORD | No | - | MQTT password |
-| EVIQO_TOPIC_PREFIX | No | eviqo | MQTT topic prefix |
-| HASS_DISCOVERY_PREFIX | No | homeassistant | HA discovery prefix |
-| EVIQO_POLL_INTERVAL | No | 30000 | Poll interval (ms) |
-| LOG_LEVEL | No | info | Log level (debug, info, warn, error) |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| EVIQO_EMAIL | Yes | Eviqo account email |
+| EVIQO_PASSWORD | Yes | Eviqo account password |
+| MQTT_URL | Yes | MQTT broker URL (mqtt://[user:pass@]host[:port]) |
+| LOG_LEVEL | No | Log level: debug, info, warn, error (default: info) |
 
 ## Troubleshooting
 

@@ -15,7 +15,7 @@ import {
   EviqoDevicePageModel,
   DeviceDocs,
 } from 'eviqo-client-api';
-import { GatewayConfig, getMqttUrl } from './config';
+import { GatewayConfig } from './config';
 import {
   publishDeviceDiscovery,
   removeDeviceDiscovery,
@@ -154,8 +154,9 @@ export class EviqoMqttGateway extends EventEmitter {
    * Connect to MQTT broker
    */
   private async connectMqtt(): Promise<void> {
-    const url = getMqttUrl(this.config.mqtt);
-    logger.info(`Connecting to MQTT broker at ${url}...`);
+    // Mask credentials in log output
+    const logUrl = this.config.mqtt.url.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@');
+    logger.info(`Connecting to MQTT broker at ${logUrl}...`);
 
     const options: mqtt.IClientOptions = {
       clientId: this.config.mqtt.clientId,
@@ -164,15 +165,8 @@ export class EviqoMqttGateway extends EventEmitter {
       clean: true,
     };
 
-    if (this.config.mqtt.username) {
-      options.username = this.config.mqtt.username;
-    }
-    if (this.config.mqtt.password) {
-      options.password = this.config.mqtt.password;
-    }
-
     return new Promise((resolve, reject) => {
-      this.mqttClient = mqtt.connect(url, options);
+      this.mqttClient = mqtt.connect(this.config.mqtt.url, options);
 
       const connectHandler = () => {
         logger.info('Connected to MQTT broker');
@@ -263,10 +257,10 @@ export class EviqoMqttGateway extends EventEmitter {
       this.eviqoClient.extractWidgetMappings(deviceIdx, devicePage);
 
       // Publish Home Assistant discovery
-      if (this.config.homeAssistant.enabled && this.mqttClient) {
+      if (this.mqttClient) {
         await publishDeviceDiscovery(
           this.mqttClient,
-          this.config.homeAssistant.discoveryPrefix,
+          this.config.discoveryPrefix,
           this.config.topicPrefix,
           devicePage
         );
@@ -613,7 +607,7 @@ export class EviqoMqttGateway extends EventEmitter {
     for (const devicePage of this.devicePages.values()) {
       await removeDeviceDiscovery(
         this.mqttClient,
-        this.config.homeAssistant.discoveryPrefix,
+        this.config.discoveryPrefix,
         devicePage
       );
     }

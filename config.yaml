@@ -18,24 +18,12 @@ services:
 options:
   eviqo_email: ""
   eviqo_password: ""
-  mqtt_host: ""
-  mqtt_port: 1883
-  mqtt_username: ""
-  mqtt_password: ""
-  topic_prefix: eviqo
-  discovery_prefix: homeassistant
-  poll_interval: 30000
+  mqtt_url: ""
   debug: false
 schema:
   eviqo_email: email
   eviqo_password: password
-  mqtt_host: str?
-  mqtt_port: port?
-  mqtt_username: str?
-  mqtt_password: password?
-  topic_prefix: str?
-  discovery_prefix: str?
-  poll_interval: int(1000,300000)?
+  mqtt_url: url?
   debug: bool?
 image: ghcr.io/tsightler/eviqo-mqtt-{arch}
 init: false

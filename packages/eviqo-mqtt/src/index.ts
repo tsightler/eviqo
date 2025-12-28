@@ -14,9 +14,7 @@ export {
   GatewayConfig,
   MqttConfig,
   EviqoConfig,
-  HomeAssistantConfig,
   loadConfig,
-  getMqttUrl,
 } from './config';
 
 // Home Assistant discovery

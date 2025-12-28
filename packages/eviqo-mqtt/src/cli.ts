@@ -32,28 +32,19 @@ Options:
   --remove-discovery  Remove Home Assistant discovery configs and exit
 
 Environment Variables:
-  EVIQO_EMAIL              Eviqo account email (required)
-  EVIQO_PASSWORD           Eviqo account password (required)
-
-  MQTT_HOST                MQTT broker hostname (default: localhost)
-  MQTT_PORT                MQTT broker port (default: 1883)
-  MQTT_USERNAME            MQTT username (optional)
-  MQTT_PASSWORD            MQTT password (optional)
-  MQTT_CLIENT_ID           MQTT client ID (default: auto-generated)
-
-  HASS_DISCOVERY           Enable Home Assistant discovery (default: true)
-  HASS_DISCOVERY_PREFIX    Home Assistant discovery prefix (default: homeassistant)
-
-  EVIQO_TOPIC_PREFIX       MQTT topic prefix (default: eviqo)
-  EVIQO_POLL_INTERVAL      Poll interval in ms (default: 30000)
-  LOG_LEVEL                Log level: debug, info, warn, error (default: info)
+  EVIQO_EMAIL        Eviqo account email (required)
+  EVIQO_PASSWORD     Eviqo account password (required)
+  MQTT_URL           MQTT broker URL (required)
+                     Format: mqtt://[user:pass@]host[:port]
+  LOG_LEVEL          Log level: debug, info, warn, error (default: info)
 
 Examples:
   # Start the gateway
-  EVIQO_EMAIL=user@example.com EVIQO_PASSWORD=pass eviqo-mqtt
+  EVIQO_EMAIL=user@example.com EVIQO_PASSWORD=pass \\
+    MQTT_URL=mqtt://192.168.1.100:1883 eviqo-mqtt
 
-  # Start with custom MQTT broker
-  MQTT_HOST=192.168.1.100 eviqo-mqtt
+  # With MQTT authentication
+  MQTT_URL=mqtt://user:pass@192.168.1.100:1883 eviqo-mqtt
 
   # Start with debug logging
   eviqo-mqtt --debug
