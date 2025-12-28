@@ -33,6 +33,7 @@ export interface HaEntityConfig {
   state_class?: string;
   value_template?: string;
   icon?: string;
+  suggested_display_precision?: number;
   // Switch/button specific
   command_topic?: string;
   payload_on?: string;
@@ -53,6 +54,7 @@ interface WidgetMapping {
   state_class?: string;
   icon?: string;
   topic_id?: string;  // Custom topic name (defaults to normalized widget name)
+  precision?: number; // Display precision (decimal places)
 }
 
 /**
@@ -68,7 +70,7 @@ export const WIDGET_MAPPINGS: Record<string, WidgetMapping> = {
   'Session Energy': { device_class: 'energy', unit: 'kWh', state_class: 'total_increasing' },
 
   // Electrical
-  'Voltage': { device_class: 'voltage', unit: 'V', state_class: 'measurement' },
+  'Voltage': { device_class: 'voltage', unit: 'V', state_class: 'measurement', precision: 1 },
   'Amperage': { device_class: 'current', unit: 'A', state_class: 'measurement' },
   'Frequency': { device_class: 'frequency', unit: 'Hz', state_class: 'measurement' },
 
@@ -164,6 +166,9 @@ export function createSensorConfig(
   }
   if (mapping.icon) {
     config.icon = mapping.icon;
+  }
+  if (mapping.precision !== undefined) {
+    config.suggested_display_precision = mapping.precision;
   }
 
   const topic = `${discoveryPrefix}/sensor/${deviceId}/${sensorId}/config`;
