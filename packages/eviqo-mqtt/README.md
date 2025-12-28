@@ -1,10 +1,10 @@
 # Eviqo MQTT
 
-MQTT gateway for Eviqo EV charging stations with Home Assistant auto-discovery support.
+MQTT gateway for EVIQO EVSE units with Home Assistant auto-discovery support.
 
 ## Overview
 
-This gateway bridges your Eviqo EV charger data to MQTT, enabling integration with:
+This gateway bridges your EVIQO EVSE unit and exposes the data to MQTT, enabling integration with:
 - Home Assistant (via MQTT auto-discovery)
 - Node-RED
 - Any MQTT-compatible home automation system
@@ -12,9 +12,9 @@ This gateway bridges your Eviqo EV charger data to MQTT, enabling integration wi
 ## Features
 
 - **Real-time Updates**: Receives live widget updates from Eviqo cloud
+- **Multiple Sensors**: Charging status, power, voltage, current, temperature, and more
+- **Command Support**: Set current limit, manually start/stop charging via MQTT commands
 - **Home Assistant Auto-Discovery**: Automatic device and entity creation
-- **Multiple Sensors**: Power, energy, voltage, current, temperature, and more
-- **Retained Messages**: MQTT state is preserved across restarts
 - **Automatic Reconnection**: Handles connection drops gracefully
 
 ## Installation
@@ -247,4 +247,4 @@ MIT
 ## Related
 
 - [eviqo-client-api](../eviqo-client-api) - The underlying Eviqo API client
-- [ring-mqtt](https://github.com/tsightler/ring-mqtt) - Similar MQTT gateway for Ring devices
+

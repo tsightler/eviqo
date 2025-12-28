@@ -1,13 +1,15 @@
-# Eviqo Monorepo
+# EVIQO Project
 
-Monorepo containing packages for Eviqo EV charger integration.
+This monorepo contains packages for interacting with the EVIQO L2 EVSE, including an API client that implements authentication and websocket parsing, and an MQTT gateway.
+
+The initial versions of the API were ported from the [evipy project](https://github.com/zacharyasmith/evipy) and much credit should go to the author of that project for the initial reverse engineering work.
 
 ## Packages
 
 | Package | Description |
 |---------|-------------|
-| [eviqo-client-api](./packages/eviqo-client-api) | Node.js/TypeScript client library for Eviqo EV charging stations |
-| [eviqo-mqtt](./packages/eviqo-mqtt) | MQTT gateway with Home Assistant auto-discovery support |
+| [eviqo-client-api](./packages/eviqo-client-api) | Node.js/TypeScript client library for EVIQO L2 EVSE  |
+| [eviqo-mqtt](./packages/eviqo-mqtt) | EVIQO-to-MQTT gateway with Home Assistant auto-discovery support |
 
 ## Quick Start
 

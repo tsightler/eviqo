@@ -336,4 +336,4 @@ This is an unofficial library and is not affiliated with or endorsed by Eviqo. U
 ## Acknowledgments
 
 - Original Python implementation by [Zach](https://github.com/zacharyasmith)
-- Ported to Node.js/TypeScript by Claude Code
+- Ported to Node.js/TypeScript by Claude Code (with help from [tsightler](https://github.com/tsightler))
