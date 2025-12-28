@@ -66,6 +66,9 @@ export class EviqoMqttGateway extends EventEmitter {
   private deviceStatus: Map<string, string> = new Map();
   // Map charging command topics to device IDs
   private chargingCommandTopicMap: Map<string, string> = new Map();
+  // Charging command execution tracking
+  private chargingInProgress: Map<string, boolean> = new Map();
+  private chargingDesiredState: Map<string, 'ON' | 'OFF'> = new Map();
 
   constructor(config: GatewayConfig) {
     super();
@@ -419,12 +422,37 @@ export class EviqoMqttGateway extends EventEmitter {
 
     // If this is Status, track the status and update the charging switch
     if (widgetName === 'Status') {
-      // Track status for charging control logic
       this.deviceStatus.set(String(deviceId), rawValue);
 
-      const chargingTopic = `${this.config.topicPrefix}/${deviceId}/charging/state`;
-      const isCharging = rawValue === '2'; // 2 = charging
-      this.mqttClient.publish(chargingTopic, isCharging ? 'ON' : 'OFF', { retain });
+      const chargingTopic =
+        `${this.config.topicPrefix}/${deviceId}/charging/state`;
+      const inProgress = this.chargingInProgress.get(String(deviceId));
+      const desired = this.chargingDesiredState.get(String(deviceId));
+
+      const reachedDesiredState =
+        (desired === 'ON' && rawValue === '2') ||
+        (desired === 'OFF' && rawValue !== '2');
+
+      // Normal updates when no command is running
+      if (!inProgress) {
+        this.mqttClient.publish(
+          chargingTopic,
+          rawValue === '2' ? 'ON' : 'OFF',
+          { retain }
+        );
+      }
+
+      // Resolve command when expected state is reached
+      if (inProgress && reachedDesiredState) {
+        this.chargingInProgress.delete(String(deviceId));
+        this.chargingDesiredState.delete(String(deviceId));
+
+        this.mqttClient.publish(
+          chargingTopic,
+          rawValue === '2' ? 'ON' : 'OFF',
+          { retain: false }
+        );
+      }
     }
   }
 
@@ -496,6 +524,45 @@ export class EviqoMqttGateway extends EventEmitter {
 
     logger.info(`Charging command: ${command} for device ${deviceId} (current status: ${currentStatus})`);
 
+    const chargingStateTopic = `${this.config.topicPrefix}/${deviceId}/charging/state`;
+
+    // Mark charging command as in progress and desired state
+    this.chargingInProgress.set(deviceId, true);
+    this.chargingDesiredState.set(deviceId, command as 'ON' | 'OFF');
+
+    // Optimistically reflect user intent in HA
+    this.mqttClient?.publish(
+      chargingStateTopic,
+      command === 'ON' ? 'ON' : 'OFF',
+      { retain: false }
+    );
+
+    setTimeout(() => {
+      if (!this.chargingInProgress.get(deviceId)) return;
+
+      const desired = this.chargingDesiredState.get(deviceId);
+      const actual = this.deviceStatus.get(deviceId);
+
+      const success =
+        (desired === 'ON' && actual === '2') ||
+        (desired === 'OFF' && actual !== '2');
+
+      if (!success) {
+        logger.warn(
+          `Charging command timeout for device ${deviceId} (desired=${desired}, actual=${actual})`
+        );
+      }
+
+      this.chargingInProgress.delete(deviceId);
+      this.chargingDesiredState.delete(deviceId);
+
+      this.mqttClient?.publish(
+        chargingStateTopic,
+        actual === '2' ? 'ON' : 'OFF',
+        { retain: false }
+      );
+    }, 10000);
+
     try {
       if (command === 'OFF') {
         // Stop charging - only valid if currently charging (status=2)
@@ -503,7 +570,8 @@ export class EviqoMqttGateway extends EventEmitter {
           logger.warn(`Cannot stop charging: device ${deviceId} is not charging (status=${currentStatus})`);
           return;
         }
-        await this.eviqoClient!.sendCommand(deviceId, chargingPin, '3');
+        await this.eviqoClient!.sendCommand(deviceId, chargingPin, '2');
+        await new Promise(resolve => setTimeout(resolve, 10));
         await this.eviqoClient!.sendCommand(deviceId, chargingPin, '0');
         logger.info(`Charging stopped for device ${deviceId}`);
       } else if (command === 'ON') {
@@ -516,15 +584,18 @@ export class EviqoMqttGateway extends EventEmitter {
           return;
         } else if (currentStatus === '1') {
           // Plugged - send start command
-          await this.eviqoClient!.sendCommand(deviceId, chargingPin, '2');
+          await this.eviqoClient!.sendCommand(deviceId, chargingPin, '1');
+          await new Promise(resolve => setTimeout(resolve, 10));
           await this.eviqoClient!.sendCommand(deviceId, chargingPin, '0');
           logger.info(`Charging started for device ${deviceId}`);
         } else if (currentStatus === '3') {
           // Stopped - need to unlock then start
-          await this.eviqoClient!.sendCommand(deviceId, chargingPin, '1');
+          await this.eviqoClient!.sendCommand(deviceId, chargingPin, '3');
+          await new Promise(resolve => setTimeout(resolve, 10));
           await this.eviqoClient!.sendCommand(deviceId, chargingPin, '0');
-          await new Promise(resolve => setTimeout(resolve, 250));
-          await this.eviqoClient!.sendCommand(deviceId, chargingPin, '2');
+          await new Promise(resolve => setTimeout(resolve, 50));
+          await this.eviqoClient!.sendCommand(deviceId, chargingPin, '1');
+          await new Promise(resolve => setTimeout(resolve, 10));
           await this.eviqoClient!.sendCommand(deviceId, chargingPin, '0');
           logger.info(`Charging started for device ${deviceId} (from stopped state)`);
         } else {
