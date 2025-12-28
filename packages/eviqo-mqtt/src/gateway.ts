@@ -389,12 +389,10 @@ export class EviqoMqttGateway extends EventEmitter {
     const sensorId = getTopicId(widgetName);
     const topic = `${this.config.topicPrefix}/${deviceId}/${sensorId}/state`;
 
-    // Status values should not be retained (they're transient)
-    const shouldRetain = widgetName !== 'Status';
-
     logger.debug(`Publishing: ${topic} = ${publishValue}`);
 
-    this.mqttClient.publish(topic, publishValue, { retain: shouldRetain });
+    // Widget state values are not retained
+    this.mqttClient.publish(topic, publishValue, { retain: false });
   }
 
   /**
@@ -459,7 +457,7 @@ export class EviqoMqttGateway extends EventEmitter {
     }
 
     logger.info(`Updating state after command: ${stateTopic} = ${command.value}`);
-    this.mqttClient.publish(stateTopic, command.value, { retain: true });
+    this.mqttClient.publish(stateTopic, command.value, { retain: false });
   }
 
   /**
