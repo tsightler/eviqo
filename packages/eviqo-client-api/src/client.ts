@@ -513,8 +513,7 @@ export class EviqoWebsocketConnection extends EventEmitter {
    * Send a binary message to the WebSocket
    *
    * Message format (3-byte header):
-   * - 1 byte: message type
-   * - 2 bytes: message ID (big-endian, auto-incremented)
+   * - messageType, messageId (2 bytes, big-endian)
    * - Payload
    *
    * @param payload - Message payload (object, string, or null)
@@ -532,11 +531,11 @@ export class EviqoWebsocketConnection extends EventEmitter {
     }
 
     try {
-      const msgId = this.messageCounter;
+      const messageId = this.messageCounter;
       this.messageCounter += 1;
 
-      const message = createBinaryMessage(payload, messageType, msgId);
-      logger.info(`SENDING ${description} [type=0x${messageType.toString(16)}, msgId=${msgId}]`);
+      const message = createBinaryMessage(payload, messageType, messageId);
+      logger.info(`SENDING ${description} [msgId=${messageId}, counter=${this.messageCounter}]`);
       logger.info(`Outbound hex: ${message.toString('hex')}`);
       this.ws.send(message);
     } catch (error) {
@@ -557,7 +556,7 @@ export class EviqoWebsocketConnection extends EventEmitter {
     }
 
     try {
-      await this.issueInitialization();
+      // Skip init - official client doesn't send it
       await this.login();
       await this.queryDevices();
 

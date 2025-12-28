@@ -185,14 +185,13 @@ export function parseWidgetUpdate(
 /**
  * Create binary message with 3-byte header
  *
- * Message format (official client):
- * - 1 byte: message type
- * - 2 bytes: message ID (big-endian)
+ * Message format (web client):
+ * - 3 bytes: header (messageType, messageId high byte, messageId low byte)
  * - Remaining bytes: payload (JSON, ASCII, UTF-8, or binary)
  *
  * @param payload - Message payload (object, string, or null)
  * @param messageType - Message type byte (e.g., 0x02 for login, 0x06 for keepalive)
- * @param messageId - Message ID (0-65535)
+ * @param messageId - 16-bit message ID (default: 0x0000)
  * @returns Binary message as Buffer
  */
 export function createBinaryMessage(
@@ -200,10 +199,12 @@ export function createBinaryMessage(
   messageType = 0x00,
   messageId = 0x0000
 ): Buffer {
-  // Build 3-byte header: type + msgId (2 bytes big-endian)
-  const header = Buffer.alloc(3);
-  header[0] = messageType;
-  header.writeUInt16BE(messageId & 0xffff, 1);
+  // Build 3-byte header: type + messageId (big-endian)
+  const header = Buffer.from([
+    messageType,
+    (messageId >> 8) & 0xff,
+    messageId & 0xff,
+  ]);
 
   // Add payload if present
   if (typeof payload === 'string') {
@@ -220,15 +221,14 @@ export function createBinaryMessage(
 /**
  * Create a command message for controlling device widgets
  *
- * Command format:
- * - Byte 0: 0x14 (virtual write command type)
- * - Bytes 1-2: Message ID (2 bytes, big-endian)
- * - Payload: deviceId\0vw\0pin\0value\0
+ * Command format (web client):
+ * - 4 bytes: header (0x00, 0x14, 0x00, msgId)
+ * - Payload: deviceId\0vw\0pin\0value (no trailing null)
  *
  * @param deviceId - Device ID string (e.g., "51627")
  * @param pin - Pin number string (e.g., "3" for Current)
  * @param value - Value string (e.g., "32" for 32 amps)
- * @param messageId - Message ID (0-65535)
+ * @param messageId - Message ID (0-255, goes in byte4)
  * @returns Command message as Buffer
  */
 export function createCommandMessage(
@@ -237,12 +237,8 @@ export function createCommandMessage(
   value: string,
   messageId: number
 ): Buffer {
-  // Command byte
-  const cmdByte = Buffer.from([0x14]);
-
-  // Message ID (2 bytes, big-endian)
-  const msgIdBytes = Buffer.alloc(2);
-  msgIdBytes.writeUInt16BE(messageId & 0xffff, 0);
+  // 4-byte header: 00 14 00 XX
+  const header = Buffer.from([0x00, 0x14, 0x00, messageId & 0xff]);
 
   // Build payload: deviceId\0vw\0pin\0value (no trailing null on value)
   const payload = Buffer.from(
@@ -250,7 +246,7 @@ export function createCommandMessage(
     'binary'
   );
 
-  return Buffer.concat([cmdByte, msgIdBytes, payload]);
+  return Buffer.concat([header, payload]);
 }
 
 /**

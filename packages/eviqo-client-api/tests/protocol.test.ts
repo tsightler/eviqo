@@ -177,54 +177,66 @@ describe('parseWidgetUpdate', () => {
 });
 
 describe('createCommandMessage', () => {
-  it('should create a command message with correct format', () => {
-    // Test case from documentation: Set Current to 32 Amps
-    const message = createCommandMessage('51627', '3', '32', 0x00bb);
+  it('should create a command message with correct 4-byte header format', () => {
+    // Web client format: 00 14 00 XX + payload
+    const message = createCommandMessage('51627', '3', '32', 0xbb);
 
-    // Expected: 14 00 bb 35 31 36 32 37 00 76 77 00 33 00 33 32 00
-    expect(message[0]).toBe(0x14); // Command type
-    expect(message[1]).toBe(0x00); // Message ID high byte
-    expect(message[2]).toBe(0xbb); // Message ID low byte
+    // 4-byte header: 00 14 00 bb
+    expect(message[0]).toBe(0x00); // First byte
+    expect(message[1]).toBe(0x14); // Command type
+    expect(message[2]).toBe(0x00); // Third byte
+    expect(message[3]).toBe(0xbb); // Message ID (low byte only)
 
-    // Payload starts at byte 3 (no trailing null on value)
-    const payload = message.subarray(3).toString('binary');
+    // Payload starts at byte 4 (no trailing null on value)
+    const payload = message.subarray(4).toString('binary');
     expect(payload).toBe('51627\x00vw\x003\x0032');
   });
 
   it('should create a command message for setting current to 40', () => {
-    const message = createCommandMessage('51627', '3', '40', 0x00bc);
+    const message = createCommandMessage('51627', '3', '40', 0xbc);
 
-    expect(message[0]).toBe(0x14);
-    expect(message[1]).toBe(0x00);
-    expect(message[2]).toBe(0xbc);
+    expect(message[0]).toBe(0x00);
+    expect(message[1]).toBe(0x14);
+    expect(message[2]).toBe(0x00);
+    expect(message[3]).toBe(0xbc);
 
-    const payload = message.subarray(3).toString('binary');
+    const payload = message.subarray(4).toString('binary');
     expect(payload).toBe('51627\x00vw\x003\x0040');
   });
 
   it('should create a command message for start charging', () => {
     // Pin 1 = Start/Stop Charge, value 1 = ON
-    const message = createCommandMessage('51627', '1', '1', 0x00bd);
+    const message = createCommandMessage('51627', '1', '1', 0xbd);
 
-    expect(message[0]).toBe(0x14);
-    expect(message[1]).toBe(0x00);
-    expect(message[2]).toBe(0xbd);
+    expect(message[0]).toBe(0x00);
+    expect(message[1]).toBe(0x14);
+    expect(message[2]).toBe(0x00);
+    expect(message[3]).toBe(0xbd);
 
-    const payload = message.subarray(3).toString('binary');
+    const payload = message.subarray(4).toString('binary');
     expect(payload).toBe('51627\x00vw\x001\x001');
   });
 
-  it('should handle message ID wrap-around', () => {
+  it('should handle message ID wrap-around (only low byte used)', () => {
     const message = createCommandMessage('12345', '3', '16', 0xffff);
 
-    expect(message[1]).toBe(0xff);
-    expect(message[2]).toBe(0xff);
+    // Only low byte is used for message ID
+    expect(message[3]).toBe(0xff);
   });
 
   it('should match expected hex output for 32A command', () => {
-    const message = createCommandMessage('51627', '3', '32', 0x00bb);
-    // Expected: 14 00 bb 35 31 36 32 37 00 76 77 00 33 00 33 32 (no trailing null)
-    const expectedHex = '1400bb35313632370076770033003332';
+    const message = createCommandMessage('51627', '3', '32', 0xbb);
+    // Expected: 00 14 00 bb 35 31 36 32 37 00 76 77 00 33 00 33 32
+    const expectedHex = '001400bb35313632370076770033003332';
+
+    expect(message.toString('hex')).toBe(expectedHex);
+  });
+
+  it('should match web client command format', () => {
+    // Example from web client: 00 14 00 21 35 31 36 32 37 00 76 77 00 33 00 32 38
+    // This sets Current (pin 3) to 28A on device 51627 with msgId 0x21
+    const message = createCommandMessage('51627', '3', '28', 0x21);
+    const expectedHex = '0014002135313632370076770033003238';
 
     expect(message.toString('hex')).toBe(expectedHex);
   });
