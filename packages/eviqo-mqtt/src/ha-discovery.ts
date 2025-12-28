@@ -312,21 +312,20 @@ export async function publishDeviceDiscovery(
   for (const widget of dashboard.widgets) {
     for (const module of widget.modules) {
       for (const stream of module.displayDataStreams) {
-        // Only publish widgets that have a mapping defined
-        if (!(stream.name in WIDGET_MAPPINGS)) continue;
+        // Publish sensor config if widget is in WIDGET_MAPPINGS
+        if (stream.name in WIDGET_MAPPINGS) {
+          const { topic, payload } = createSensorConfig(
+            discoveryPrefix,
+            topicPrefix,
+            device,
+            stream
+          );
 
-        const { topic, payload } = createSensorConfig(
-          discoveryPrefix,
-          topicPrefix,
-          device,
-          stream
-        );
+          await publishRetained(mqttClient, topic, JSON.stringify(payload));
+        }
 
-        await publishRetained(mqttClient, topic, JSON.stringify(payload));
-
-        // Check if this widget is controllable
+        // Publish number entity config if widget is controllable
         const controlSettings = CONTROLLABLE_WIDGETS[stream.name];
-        logger.debug(`Checking widget "${stream.name}" for control settings: ${controlSettings ? 'found' : 'not found'}`);
         if (controlSettings) {
           const numberConfig = createNumberConfig(
             discoveryPrefix,
