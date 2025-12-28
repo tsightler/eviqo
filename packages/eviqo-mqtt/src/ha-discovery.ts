@@ -397,7 +397,10 @@ export async function publishDeviceDiscovery(
   );
   await publishRetained(mqttClient, connectivityConfig.topic, JSON.stringify(connectivityConfig.payload));
 
-  // Publish charging switch
+  // Publish charging switch (and remove old binary sensor config if it exists)
+  const deviceId = `eviqo_${device.id}`;
+  await publishRetained(mqttClient, `${discoveryPrefix}/binary_sensor/${deviceId}/charging/config`, '');
+
   const chargingConfig = createSwitchConfig(
     discoveryPrefix,
     topicPrefix,
