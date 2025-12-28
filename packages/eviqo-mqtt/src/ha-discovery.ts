@@ -45,14 +45,10 @@ export interface HaEntityConfig {
 }
 
 /**
- * Widgets to skip (not published to MQTT or HA discovery)
+ * Map widget names to Home Assistant device classes and units.
+ * Only widgets listed here will be published to MQTT and HA discovery.
  */
-const SKIP_WIDGETS = new Set(['Current max']);
-
-/**
- * Map widget names to Home Assistant device classes and units
- */
-const WIDGET_MAPPINGS: Record<string, { device_class?: string; unit?: string; state_class?: string; icon?: string }> = {
+export const WIDGET_MAPPINGS: Record<string, { device_class?: string; unit?: string; state_class?: string; icon?: string }> = {
   // Power and energy
   'Charging Power': { device_class: 'power', unit: 'kW', state_class: 'measurement' },
   'Power': { device_class: 'power', unit: 'kW', state_class: 'measurement' },
@@ -266,7 +262,8 @@ export async function publishDeviceDiscovery(
   for (const widget of dashboard.widgets) {
     for (const module of widget.modules) {
       for (const stream of module.displayDataStreams) {
-        if (SKIP_WIDGETS.has(stream.name)) continue;
+        // Only publish widgets that have a mapping defined
+        if (!(stream.name in WIDGET_MAPPINGS)) continue;
 
         const { topic, payload } = createSensorConfig(
           discoveryPrefix,

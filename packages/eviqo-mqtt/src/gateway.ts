@@ -20,6 +20,7 @@ import {
   publishDeviceDiscovery,
   removeDeviceDiscovery,
   CONTROLLABLE_WIDGETS,
+  WIDGET_MAPPINGS,
 } from './ha-discovery';
 
 /**
@@ -31,11 +32,6 @@ function normalizeTopicName(name: string): string {
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_|_$/g, '');
 }
-
-/**
- * Widgets to skip (not published to MQTT)
- */
-const SKIP_WIDGETS = new Set(['Current max']);
 
 /**
  * Value transformers for specific widgets
@@ -392,7 +388,8 @@ export class EviqoMqttGateway extends EventEmitter {
     rawValue: string
   ): void {
     if (!this.mqttClient || !this.mqttClient.connected) return;
-    if (SKIP_WIDGETS.has(widgetName)) return;
+    // Only publish widgets that have a mapping defined
+    if (!(widgetName in WIDGET_MAPPINGS)) return;
 
     const sensorId = normalizeTopicName(widgetName);
     const topic = `${this.config.topicPrefix}/${deviceId}/sensor/${sensorId}/state`;
