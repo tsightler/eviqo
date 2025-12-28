@@ -183,28 +183,28 @@ export function parseWidgetUpdate(
 }
 
 /**
- * Create binary message with 3-byte header
+ * Create binary message with 4-byte header
  *
- * Message format (web client):
- * - 3 bytes: header (messageType, messageId high byte, messageId low byte)
+ * Message format:
+ * - 4 bytes: header (byte1, byte2, byte3, byte4)
  * - Remaining bytes: payload (JSON, ASCII, UTF-8, or binary)
  *
  * @param payload - Message payload (object, string, or null)
- * @param messageType - Message type byte (e.g., 0x02 for login, 0x06 for keepalive)
- * @param messageId - 16-bit message ID (default: 0x0000)
+ * @param byte1 - First header byte
+ * @param byte2 - Second header byte (often message type)
+ * @param byte3 - Third header byte
+ * @param byte4 - Fourth header byte (often message ID)
  * @returns Binary message as Buffer
  */
 export function createBinaryMessage(
   payload: Record<string, unknown> | string | null = null,
-  messageType = 0x00,
-  messageId = 0x0000
+  byte1 = 0x00,
+  byte2 = 0x00,
+  byte3 = 0x00,
+  byte4 = 0x00
 ): Buffer {
-  // Build 3-byte header: type + messageId (big-endian)
-  const header = Buffer.from([
-    messageType,
-    (messageId >> 8) & 0xff,
-    messageId & 0xff,
-  ]);
+  // Build 4-byte header
+  const header = Buffer.from([byte1, byte2, byte3, byte4]);
 
   // Add payload if present
   if (typeof payload === 'string') {
