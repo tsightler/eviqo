@@ -45,6 +45,11 @@ export interface HaEntityConfig {
 }
 
 /**
+ * Widgets to skip (not published to MQTT or HA discovery)
+ */
+const SKIP_WIDGETS = new Set(['Current max']);
+
+/**
  * Map widget names to Home Assistant device classes and units
  */
 const WIDGET_MAPPINGS: Record<string, { device_class?: string; unit?: string; state_class?: string; icon?: string }> = {
@@ -261,6 +266,8 @@ export async function publishDeviceDiscovery(
   for (const widget of dashboard.widgets) {
     for (const module of widget.modules) {
       for (const stream of module.displayDataStreams) {
+        if (SKIP_WIDGETS.has(stream.name)) continue;
+
         const { topic, payload } = createSensorConfig(
           discoveryPrefix,
           topicPrefix,

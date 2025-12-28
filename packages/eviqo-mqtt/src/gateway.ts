@@ -33,6 +33,11 @@ function normalizeTopicName(name: string): string {
 }
 
 /**
+ * Widgets to skip (not published to MQTT)
+ */
+const SKIP_WIDGETS = new Set(['Current max']);
+
+/**
  * Value transformers for specific widgets
  * Maps widget name to a function that transforms the raw value
  */
@@ -387,6 +392,7 @@ export class EviqoMqttGateway extends EventEmitter {
     rawValue: string
   ): void {
     if (!this.mqttClient || !this.mqttClient.connected) return;
+    if (SKIP_WIDGETS.has(widgetName)) return;
 
     const sensorId = normalizeTopicName(widgetName);
     const topic = `${this.config.topicPrefix}/${deviceId}/sensor/${sensorId}/state`;
