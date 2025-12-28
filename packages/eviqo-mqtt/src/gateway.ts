@@ -21,17 +21,10 @@ import {
   removeDeviceDiscovery,
   CONTROLLABLE_WIDGETS,
   WIDGET_MAPPINGS,
+  getTopicId,
+  getWidgetGroup,
+  getGroupKey,
 } from './ha-discovery';
-
-/**
- * Normalize widget name for MQTT topic
- */
-function normalizeTopicName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_|_$/g, '');
-}
 
 /**
  * Value transformers for specific widgets
@@ -71,6 +64,8 @@ export class EviqoMqttGateway extends EventEmitter {
     new Map();
   // Reverse map from deviceId:pin to state topic for updating state after commands
   private pinToStateTopicMap: Map<string, string> = new Map();
+  // Track grouped widget values by deviceId -> group -> key -> value
+  private groupedState: Map<string, Map<string, Record<string, string>>> = new Map();
 
   constructor(config: GatewayConfig) {
     super();
@@ -305,7 +300,7 @@ export class EviqoMqttGateway extends EventEmitter {
         for (const stream of module.displayDataStreams) {
           const controlSettings = CONTROLLABLE_WIDGETS[stream.name];
           if (controlSettings) {
-            const entityId = normalizeTopicName(stream.name);
+            const entityId = getTopicId(stream.name);
             const commandTopic = `${this.config.topicPrefix}/${device.id}/sensor/${entityId}/set`;
             const stateTopic = `${this.config.topicPrefix}/${device.id}/sensor/${entityId}/state`;
 
@@ -380,7 +375,7 @@ export class EviqoMqttGateway extends EventEmitter {
   /**
    * Publish a widget value to MQTT
    *
-   * Handles topic construction, value transformation, and retain logic.
+   * Handles topic construction, value transformation, grouping, and retain logic.
    */
   private publishWidgetValue(
     deviceId: string | number,
@@ -391,12 +386,20 @@ export class EviqoMqttGateway extends EventEmitter {
     // Only publish widgets that have a mapping defined
     if (!(widgetName in WIDGET_MAPPINGS)) return;
 
-    const sensorId = normalizeTopicName(widgetName);
-    const topic = `${this.config.topicPrefix}/${deviceId}/sensor/${sensorId}/state`;
-
     // Apply value transformer if one exists for this widget
     const transformer = VALUE_TRANSFORMERS[widgetName];
     const publishValue = transformer ? transformer(rawValue) : rawValue;
+
+    // Check if this widget is part of a group
+    const group = getWidgetGroup(widgetName);
+    if (group) {
+      this.publishGroupedValue(String(deviceId), group, widgetName, publishValue);
+      return;
+    }
+
+    // Normal widget - publish individually
+    const sensorId = getTopicId(widgetName);
+    const topic = `${this.config.topicPrefix}/${deviceId}/sensor/${sensorId}/state`;
 
     // Status values should not be retained (they're transient)
     const shouldRetain = widgetName !== 'Status';
@@ -404,6 +407,44 @@ export class EviqoMqttGateway extends EventEmitter {
     logger.debug(`Publishing: ${topic} = ${publishValue}`);
 
     this.mqttClient.publish(topic, publishValue, { retain: shouldRetain });
+  }
+
+  /**
+   * Publish a grouped widget value as JSON
+   */
+  private publishGroupedValue(
+    deviceId: string,
+    group: string,
+    widgetName: string,
+    value: string
+  ): void {
+    if (!this.mqttClient || !this.mqttClient.connected) return;
+
+    // Get or create device state map
+    let deviceState = this.groupedState.get(deviceId);
+    if (!deviceState) {
+      deviceState = new Map();
+      this.groupedState.set(deviceId, deviceState);
+    }
+
+    // Get or create group state
+    let groupState = deviceState.get(group);
+    if (!groupState) {
+      groupState = {};
+      deviceState.set(group, groupState);
+    }
+
+    // Update the value for this widget's key
+    const key = getGroupKey(widgetName);
+    groupState[key] = value;
+
+    // Publish the combined JSON
+    const topic = `${this.config.topicPrefix}/${deviceId}/sensor/${group}/state`;
+    const payload = JSON.stringify(groupState);
+
+    logger.debug(`Publishing grouped: ${topic} = ${payload}`);
+
+    this.mqttClient.publish(topic, payload, { retain: true });
   }
 
   /**
