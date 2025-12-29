@@ -565,7 +565,7 @@ export class EviqoWebsocketConnection extends EventEmitter {
       }
 
       const message = createBinaryMessage(payload, byte1, byte2, byte3, actualByte4);
-      logger.info(`SENDING ${description} [byte4=${actualByte4}, counter=${this.messageCounter}]`);
+      logger.debug(`SENDING ${description} [byte4=${actualByte4}, counter=${this.messageCounter}]`);
       logger.debug(`Outbound hex: ${message.toString('hex')}`);
       this.ws.send(message);
     } catch (error) {

@@ -32,7 +32,7 @@ const VALUE_TRANSFORMERS: Record<string, (value: string) => string> = {
   Status: (value: string) => {
     const stateMap: Record<string, string> = {
       '0': 'unplugged',
-      '1': 'plugged',
+      '1': 'ready',
       '2': 'charging',
       '3': 'stopped',
     };
