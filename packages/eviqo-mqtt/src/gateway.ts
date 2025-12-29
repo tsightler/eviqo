@@ -62,7 +62,7 @@ export class EviqoMqttGateway extends EventEmitter {
     new Map();
   // Reverse map from deviceId:pin to state topic for updating state after commands
   private pinToStateTopicMap: Map<string, string> = new Map();
-  // Track current status per device (0=unplugged, 1=plugged, 2=charging, 3=stopped)
+  // Track current status per device (0=unplugged, 1=ready, 2=charging, 3=stopped)
   private deviceStatus: Map<string, string> = new Map();
   // Map charging command topics to device IDs
   private chargingCommandTopicMap: Map<string, string> = new Map();
@@ -509,7 +509,7 @@ export class EviqoMqttGateway extends EventEmitter {
    *
    * Command sequences based on current status (with 25ms delays between commands):
    * - To STOP (status=2 charging): send 2, then 0
-   * - To START (status=1 plugged): send 1, then 0
+   * - To START (status=1 ready): send 1, then 0
    * - To START (status=3 stopped): send 3, then 0, then 1, then 0
    *
    * Uses optimistic state updates - immediately publishes desired state and blocks
