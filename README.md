@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="images/eviqo-mqtt-logo.png" alt="EVIQO-MQTT Logo" width="400">
+</p>
+
 # EVIQO Project
 
 This monorepo contains packages for interacting with the EVIQO L2 EVSE, including an API client that implements authentication and websocket parsing, and an MQTT gateway.
