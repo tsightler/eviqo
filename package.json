@@ -12,7 +12,8 @@
     "build:mqtt": "npm run build -w eviqo-mqtt",
     "test": "npm test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules"
+    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules",
+    "release": "node scripts/release.js"
   },
   "repository": {
     "type": "git",
