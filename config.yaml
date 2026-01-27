@@ -1,6 +1,6 @@
 # Home Assistant Add-on Configuration
 name: Eviqo MQTT
-version: "1.0.9"
+version: "1.1.0"
 slug: eviqo-mqtt
 description: >-
   Bridges Eviqo EV charger data to MQTT with Home Assistant auto-discovery.
