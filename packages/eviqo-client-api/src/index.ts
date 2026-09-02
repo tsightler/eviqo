@@ -7,8 +7,16 @@
  * @packageDocumentation
  */
 
-// Main client
-export { EviqoWebsocketConnection, WS_URL } from './client';
+// Main client. Keep the legacy implementation available for debugging, while
+// exporting the current web-protocol-compatible implementation by default.
+export {
+  EviqoWebsocketConnection as LegacyEviqoWebsocketConnection,
+  WS_URL,
+} from './client';
+export {
+  EviqoWebsocketConnection,
+  EVIQO_WEB_CLIENT_VERSION,
+} from './current-client';
 
 // Models
 export type {
